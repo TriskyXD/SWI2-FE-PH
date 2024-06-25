@@ -37,7 +37,6 @@ const Register: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log(data);
 
         await AsyncStorage.setItem('access_token', data.access_token);
         await AsyncStorage.setItem('refresh_token', data.refresh_token);
