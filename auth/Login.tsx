@@ -75,11 +75,11 @@ const Login = () => {
         value={password}
         onChangeText={(text) => setPassword(text)}
       />
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
       <TouchableOpacity onPress={goToRegistration}>
         <Text style={styles.registerLink}>Don't have an account? Register here</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+        <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
     </View>
   );

@@ -70,6 +70,8 @@ const AuthProvider = ({ children }: Props) => {
     } else {
       // Remove token from AsyncStorage upon logout or authentication failure
       await AsyncStorage.removeItem('access_token');
+
+
     }
   };
 

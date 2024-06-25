@@ -73,11 +73,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     };
   }, [selectedChat]);
 
-  
+  console.log(messages);
 
   const onMessageReceived = (message) => {
     const receivedMessage: DisplayedMessage = JSON.parse(message.body);
     setMessages((prevMessages) => [...prevMessages, receivedMessage]);
+    console.log("cc");
   };
 
   const handleAddUsers = () => {
@@ -118,7 +119,22 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
 
   const handleSend = async () => {
     if (message.trim() !== '' && selectedChat && selectedChat.chat) {
+
+      const token = await AsyncStorage.getItem('access_token');
+
+      const response = await fetch(`${BACKEND_URL}/api/user`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+
+      });
+      const user = response.ok? await response.json():null;
+      console.log(user);
+
       const newMessage: DisplayedMessage = {
+        //TODO: poznámka replace owner with current user from line 133
         sender: selectedChat.chat.owner,
         content: message,
         type: 'Text',

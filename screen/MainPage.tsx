@@ -128,22 +128,39 @@ const MainPage: React.FC = () => {
   const logout = async () => {
     try {
       const accessToken = await AsyncStorage.getItem('access_token');
+      const refreshToken = await AsyncStorage.getItem('refresh_token');
+      console.log('Access token to be deleted:', accessToken);
+      console.log('Refresh token to be deleted:', refreshToken);
 
       const response = await fetch(`${BACKEND_URL}/api/auth/logout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + accessToken,
+          Authorization: `Bearer ${accessToken}`,
         },
       });
 
       if (response.ok) {
-        // Logout successful, remove the access token from AsyncStorage
+        // Logout successful, remove tokens from AsyncStorage
         await AsyncStorage.removeItem('access_token');
+        await AsyncStorage.removeItem('refresh_token');
+
         console.log('Logout successful');
 
-        // Redirect to the login screen
-        navigation.navigate('Login'); // Replace 'Login' with the actual name of your login screen
+        // Verify tokens are removed
+        const checkAccessToken = await AsyncStorage.getItem('access_token');
+        const checkRefreshToken = await AsyncStorage.getItem('refresh_token');
+
+        console.log('Access token after removal:', checkAccessToken ? checkAccessToken : 'Access token removed');
+        console.log('Refresh token after removal:', checkRefreshToken ? checkRefreshToken : 'Refresh token removed');
+
+        //setAuthenticated(false);
+        await setTimeout(() => {
+          setAuthenticated(false);
+          navigation.navigate('Login')
+        }, 1000);
+
+
       } else {
         console.error('Logout failed:', response.statusText);
       }
@@ -151,6 +168,7 @@ const MainPage: React.FC = () => {
       console.error('Error during logout:', error);
     }
   };
+
 
   const renderChatButton = (c: ChatObject) => {
     let displayedMessage = '';
