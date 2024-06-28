@@ -84,17 +84,16 @@ const Register: React.FC = () => {
         value={password}
         onChangeText={(text) => setPassword(text)}
       />
-      <TouchableOpacity style={styles.button} onPress={async () => await handleRegister()}>
-        <Text style={styles.buttonText}>Register</Text>
-      </TouchableOpacity>
+
       <Text style={styles.loginText}>
         Already have an account?{' '}
         <Text style={styles.loginLink} onPress={goToLogin}>
           Login
         </Text>
       </Text>
-      <TouchableOpacity style={styles.loginButton} onPress={goToLogin}>
-        <Text style={styles.loginButtonText}>Go to Login</Text>
+
+      <TouchableOpacity style={styles.button} onPress={async () => await handleRegister()}>
+        <Text style={styles.buttonText}>Register</Text>
       </TouchableOpacity>
     </View>
   );
@@ -123,7 +122,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ecf0f1',
   },
   button: {
-    backgroundColor: '#3498db',
+    backgroundColor: 'black',
     padding: 10,
     borderRadius: 5,
     marginTop: 10,
@@ -139,17 +138,6 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     color: '#3498db',
-    fontWeight: 'bold',
-  },
-  loginButton: {
-    backgroundColor: '#2ecc71',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-  },
-  loginButtonText: {
-    color: '#ecf0f1',
-    fontSize: 16,
     fontWeight: 'bold',
   },
 });

@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Button, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import {View, Text, TextInput, Button, ScrollView, TouchableOpacity, Modal, StyleSheet} from 'react-native';
 import {NavigationProp, RouteProp, useNavigation} from '@react-navigation/native';
-import { Client } from '@stomp/stompjs';
+import {Client, CompatClient, Stomp} from '@stomp/stompjs';
 import { DisplayedMessage } from '../interface/DisplayedMessage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {BACKEND_URL} from "../constants";
+import {ChatMessage} from "../interface/ChatMessage";
+import {ChatObject} from "../interface/ChatObject";
+import SockJS from "sockjs-client";
 
 type MainPageScreenNavigationProp = NavigationProp<RootStackParamList, 'MainPage'>;
 type MainPageScreenRouteProp = RouteProp<RootStackParamList, 'MainPage'>;
@@ -16,70 +19,99 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const [isModalVisible, setModalVisible] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const navigation = useNavigation();
-  const stompClient = useRef<Client | null>(null);
+  const [stompClient, setStompClient] = useState<CompatClient | null>(null);
 
-  const webSocketConfig = {
-    webSocketUrl: BACKEND_URL + '/ws-message',
-    stompHeaders: {},
-    topics: [`/topic/chat/${selectedChat.chat.chatId}`],
-  };
 
   useEffect(() => {
-    const initializeStompClient = () => {
-      stompClient.current = new Client({
-        webSocketFactory: () => new WebSocket(webSocketConfig.webSocketUrl),
-        connectHeaders: {},
-        debug: function (str) {
-          console.log(str);
-        },
-        reconnectDelay: 5000,
-        heartbeatIncoming: 4000,
-        heartbeatOutgoing: 4000,
+    const run = async () => {
+      const token = await AsyncStorage.getItem('access_token');
+      if(token === null) return;
+
+      await connectWebSocket(token);
+
+      navigation.setOptions({
+        title: selectedChat.chat.chatName,
+        headerRight: () => (
+            <TouchableOpacity onPress={handleAddUsers} style={{ marginRight: 16 }}>
+              <Text style={{ color: 'white', fontSize: 16 }}>Add Users</Text>
+            </TouchableOpacity>
+        ),
       });
-
-      
-
-      stompClient.current.onConnect = () => {
-        console.log('StompJS connected');
-        stompClient.current?.subscribe(`/topic/chat/${selectedChat.chat.chatId}`, onMessageReceived);
-      };
-
-      stompClient.current.onWebSocketClose = () => {
-        console.log('StompJS closed');
-      };
-
-      stompClient.current.activate();
-    };
-
-    if (selectedChat && stompClient.current === null) {
-      initializeStompClient();
-    } else if (stompClient.current && !stompClient.current.connected) {
-      initializeStompClient();
     }
 
-    navigation.setOptions({
-      title: selectedChat.chat.chatName,
-      headerRight: () => (
-        <TouchableOpacity onPress={handleAddUsers} style={{ marginRight: 16 }}>
-          <Text style={{ color: 'white', fontSize: 16 }}>Add Users</Text>
-        </TouchableOpacity>
-      ),
-    });
+    run()
+
+
 
     return () => {
-      if (stompClient.current && stompClient.current.connected) {
-        stompClient.current.deactivate();
+      if (stompClient && stompClient.connected) {
+        stompClient.deactivate();
       }
     };
   }, [selectedChat]);
 
+
+
+
+  const connectWebSocket = async (token: string) => {
+    const client = await Stomp.over(() => new SockJS(BACKEND_URL + '/ws-message', {
+      Authorization: `Bearer ${token}`,
+    }));
+    await client.configure({
+      reconnectDelay: 10000,
+    });
+
+    client.onWebSocketError = (() => {
+      console.error('WS err')
+    })
+
+    client.onStompError = (() => {
+      console.error('STOMP err')
+    })
+
+    client.onConnect = (async () => {
+      setStompClient(client);
+
+      console.log('connected')
+
+      await client.subscribe(`/chat/queue/${selectedChat.queue}`, (message) => {
+        const receivedMessage: DisplayedMessage = JSON.parse(message.body);
+        setMessages((prevMessages) => [...prevMessages, receivedMessage]);
+        console.log("cc");
+      })
+    })
+
+    client.onWebSocketClose = (() => {
+      closeConsumers();
+      setStompClient(null);
+      console.log('Disconnected from WebSocket');
+    });
+
+    await client.activate()
+  };
+
+  async function closeConsumers() {
+    const token = await AsyncStorage.getItem('access_token');
+    if (!token) return;
+
+    const response = await fetch(   BACKEND_URL + '/api/chat/close-consumers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (response.ok) {
+      console.log("Consumers closed.")
+    } else {
+      console.error('Failed to fetch user:', response.statusText);
+    }
+
+  }
+
   console.log(messages);
 
-  const onMessageReceived = (message) => {
-    const receivedMessage: DisplayedMessage = JSON.parse(message.body);
-    setMessages((prevMessages) => [...prevMessages, receivedMessage]);
-    console.log("cc");
-  };
+
 
   const handleAddUsers = () => {
     setModalVisible(true);
@@ -118,69 +150,39 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   };
 
   const handleSend = async () => {
-    if (message.trim() !== '' && selectedChat && selectedChat.chat) {
+    if (message.trim() !== '') {
 
-      const token = await AsyncStorage.getItem('access_token');
-
-      const response = await fetch(`${BACKEND_URL}/api/user`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-
-      });
-      const user = response.ok? await response.json():null;
-      console.log(user);
-
-      const newMessage: DisplayedMessage = {
-        //TODO: poznámka replace owner with current user from line 133
-        sender: selectedChat.chat.owner,
-        content: message,
+      const chatMessage: ChatMessage = {
         type: 'Text',
+        chatId: selectedChat!.chat.id,
+        content: message,
+        senderId: selectedChat!.chat.owner.id
       };
 
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
-
       try {
-        if (stompClient.current && stompClient.current.connected) {
-          stompClient.current.send(`/app/chat/${selectedChat.chat.chatId}`, {}, JSON.stringify(newMessage));
+        const token = await AsyncStorage.getItem('access_token');
+
+        const response = await fetch(`${BACKEND_URL}/api/chat/send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify(chatMessage),
+        });
+
+        if (response.ok) {
+          console.log('Message was sent successfully');
         } else {
-
-          const token = await AsyncStorage.getItem('access_token');
-
-          if (token) {
-            const response = await fetch(`${BACKEND_URL}/api/chat/send`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                type: 'Text',
-                chatId: selectedChat.chat.id,
-                content: message,
-                senderId: selectedChat.chat.owner.id,
-              }),
-            });
-
-            console.log('HTTP Response:', response);
-
-            if (response.ok) {
-              console.log('Message sent successfully through HTTP');
-            } else {
-              console.error('Message sending failed through HTTP:', response.statusText);
-            }
-          } else {
-            console.error('Access token not found.');
-          }
+          console.error('Message sending failed:', response.statusText);
         }
       } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('Message sending error:', error);
       }
 
       setMessage('');
     }
+
   };
 
   return (

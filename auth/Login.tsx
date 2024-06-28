@@ -76,7 +76,7 @@ const Login = () => {
         onChangeText={(text) => setPassword(text)}
       />
       <TouchableOpacity onPress={goToRegistration}>
-        <Text style={styles.registerLink}>Don't have an account? Register here</Text>
+        <Text style={styles.registerLink}>Don't have an account yet? Register here</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ecf0f1',
   },
   button: {
-    backgroundColor: '#3498db',
+    backgroundColor: 'black',
     padding: 10,
     borderRadius: 5,
     marginBottom: 10,
