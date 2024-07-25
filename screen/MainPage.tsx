@@ -28,11 +28,13 @@ const MainPage: React.FC = () => {
   const [chats, setChats] = useState<ChatObject[]>([]);
   const [showCreateChatModal, setShowCreateChatModal] = useState(false);
   const [newChatName, setNewChatName] = useState('');
+  const [user, setUser] = useState('');
   const [selectedChat, setSelectedChat] = useState<ChatObject | null>(null);
   const navigation = useNavigation<MainPageScreenNavigationProp>();
 
   useEffect(() => {
     fetchUserChats();
+    getUserData();
   }, []);
 
   const fetchUserChats = async () => {
@@ -59,6 +61,28 @@ const MainPage: React.FC = () => {
       console.error('Error fetching chats:', error);
     }
   };
+  const getUserData = async () => {
+    const token = await getAccessTokenFromLocalStorage();
+    if (token === null) return;
+    try {
+      const response = await fetch(BACKEND_URL+'/api/user', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+      } else {
+        console.error('Failed to fetch user:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  }
 
   const handleCreateChatSubmit = async () => {
     try {
@@ -122,7 +146,7 @@ const MainPage: React.FC = () => {
     });
 
     // Navigate to ChatScreen and pass the selected chat as a parameter
-    navigation.navigate('ChatScreen', { selectedChat: c });
+    navigation.navigate('ChatScreen', { selectedChat: c, localUser: user });
   };
 
   const logout = async () => {
@@ -188,76 +212,76 @@ const MainPage: React.FC = () => {
     }
 
     return (
-      <TouchableOpacity
-        onPress={() => openChat(c)}
-        style={[styles.button, { backgroundColor: 'black' }]}
-        key={c.chat.exchange}
-      >
-        <View style={styles.buttonContent}>
-          <Text style={styles.chatName}>{c.chat.chatName}</Text>
-          <Text style={c.seen ? styles.message : [styles.message, styles.bold]}>
-            {displayedMessage}
-          </Text>
-        </View>
-      </TouchableOpacity>
+        <TouchableOpacity
+            onPress={() => openChat(c)}
+            style={[styles.button, { backgroundColor: 'black' }]}
+            key={c.chat.exchange}
+        >
+          <View style={styles.buttonContent}>
+            <Text style={styles.chatName}>{c.chat.chatName}</Text>
+            <Text style={c.seen ? styles.message : [styles.message, styles.bold]}>
+              {displayedMessage}
+            </Text>
+          </View>
+        </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
-      {/* Display your chat rooms using ChatRoomComponent */}
-      <ScrollView style={styles.scrollView}>
-        {chats.map((chat) => renderChatButton(chat))}
-      </ScrollView>
+      <View style={styles.container}>
+        {/* Display your chat rooms using ChatRoomComponent */}
+        <ScrollView style={styles.scrollView}>
+          {chats.map((chat) => renderChatButton(chat))}
+        </ScrollView>
 
-      {/* Buttons for Create New Chat and Logout */}
-      <View style={styles.bottomButtonsContainer}>
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => setShowCreateChatModal(true)}
-        >
-          <Text style={styles.createButtonText}>Create New Chat</Text>
-        </TouchableOpacity>
+        {/* Buttons for Create New Chat and Logout */}
+        <View style={styles.bottomButtonsContainer}>
+          <TouchableOpacity
+              style={styles.createButton}
+              onPress={() => setShowCreateChatModal(true)}
+          >
+            <Text style={styles.createButtonText}>Create New Chat</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={logout}
-        >
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Modal for creating a new chat */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showCreateChatModal}
-        onRequestClose={() => setShowCreateChatModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter chat name"
-              value={newChatName}
-              onChangeText={(text) => setNewChatName(text)}
-            />
-            <TouchableOpacity
-              style={styles.createChatButton}
-              onPress={handleCreateChatSubmit}
-            >
-              <Text style={styles.createChatButtonText}>Create Chat</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowCreateChatModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={logout}
+          >
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
-    </View>
+
+        {/* Modal for creating a new chat */}
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={showCreateChatModal}
+            onRequestClose={() => setShowCreateChatModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <TextInput
+                  style={styles.input}
+                  placeholder="Enter chat name"
+                  value={newChatName}
+                  onChangeText={(text) => setNewChatName(text)}
+              />
+              <TouchableOpacity
+                  style={styles.createChatButton}
+                  onPress={handleCreateChatSubmit}
+              >
+                <Text style={styles.createChatButtonText}>Create Chat</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setShowCreateChatModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
   );
 };
 
